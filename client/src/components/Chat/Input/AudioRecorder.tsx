@@ -25,6 +25,7 @@ export default function AudioRecorder({
   const { speechToTextEndpoint } = useGetAudioSettings();
 
   const existingTextRef = useRef<string>('');
+  const disableMicButton = true; // Temporarily hide STT mic button; routing/state issues keep it from working.
 
   const onTranscriptionComplete = useCallback(
     (text: string) => {
@@ -103,7 +104,8 @@ export default function AudioRecorder({
     return <ListeningIcon className="stroke-text-secondary" />;
   };
 
-  return (
+  // Speech-to-text UI button disabled for now (routing/state issue TBD); functionality stays in place.
+  return disableMicButton ? null : (
     <TooltipAnchor
       description={localize('com_ui_use_micrphone')}
       render={
