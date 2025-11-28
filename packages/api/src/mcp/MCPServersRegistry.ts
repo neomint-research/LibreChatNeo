@@ -152,13 +152,18 @@ export class MCPServersRegistry {
 
     const toolFunctions: t.LCAvailableTools = {};
     tools.forEach((tool) => {
-      const name = `${tool.name}${Constants.mcp_delimiter}${serverName}`;
+      const baseName = tool.name;
+      const name = `${baseName}${Constants.mcp_delimiter}${serverName}`;
       toolFunctions[name] = {
         type: 'function',
         ['function']: {
           name,
           description: tool.description,
           parameters: tool.inputSchema as JsonSchemaType,
+          metadata: {
+            displayName: baseName,
+            source: serverName,
+          },
         },
       };
     });

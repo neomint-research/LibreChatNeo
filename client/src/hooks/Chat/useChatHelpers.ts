@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { QueryKeys } from 'librechat-data-provider';
+import { useCallback, useEffect, useState } from 'react';
+import { QueryKeys, isAssistantsEndpoint, isAgentsEndpoint } from 'librechat-data-provider';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRecoilState, useResetRecoilState, useSetRecoilState } from 'recoil';
 import type { TMessage } from 'librechat-data-provider';
@@ -8,6 +8,7 @@ import { useGetMessagesByConvoId } from '~/data-provider';
 import { useAuthContext } from '~/hooks/AuthContext';
 import useNewConvo from '~/hooks/useNewConvo';
 import store from '~/store';
+import { useGetModelsQuery } from 'librechat-data-provider/react-query';
 
 // this to be set somewhere else
 export default function useChatHelpers(index = 0, paramId?: string) {
@@ -22,6 +23,7 @@ export default function useChatHelpers(index = 0, paramId?: string) {
   const { useCreateConversationAtom } = store;
   const { conversation, setConversation } = useCreateConversationAtom(index);
   const { conversationId } = conversation ?? {};
+  const modelsQuery = useGetModelsQuery();
 
   const queryParam = paramId === 'new' ? paramId : (conversationId ?? paramId ?? '');
 
@@ -37,6 +39,36 @@ export default function useChatHelpers(index = 0, paramId?: string) {
   const setSiblingIdx = useSetRecoilState(
     store.messagesSiblingIdxFamily(latestMessage?.parentMessageId ?? null),
   );
+
+  useEffect(() => {
+    const endpoint = conversation?.endpoint;
+    const model = conversation?.model;
+    if (!endpoint) {
+      return;
+    }
+    if (conversation?.assistant_id && isAssistantsEndpoint(endpoint)) {
+      return;
+    }
+    if (conversation?.agent_id && isAgentsEndpoint(endpoint)) {
+      return;
+    }
+    const models = modelsQuery.isFetchedAfterMount
+      ? modelsQuery.data?.[endpoint] ?? []
+      : [];
+
+    if (!models.length) {
+      return;
+    }
+
+    if (!model || !models.includes(model)) {
+      setConversation((prev) => {
+        if (!prev || prev.endpoint !== endpoint) {
+          return prev;
+        }
+        return { ...prev, model: models[0] };
+      });
+    }
+  }, [conversation, modelsQuery.isFetchedAfterMount, modelsQuery.data, setConversation]);
 
   const setMessages = useCallback(
     (messages: TMessage[]) => {

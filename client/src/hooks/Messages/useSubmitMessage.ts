@@ -12,6 +12,7 @@ import { useToastContext } from '@librechat/client';
 import { useChatContext, useChatFormContext, useAddedChatContext } from '~/Providers';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useLocalize, useRequiresKey } from '~/hooks';
+import { useGetModelsQuery } from 'librechat-data-provider/react-query';
 import store from '~/store';
 import type { TPinnedWebSource } from '~/common';
 
@@ -90,6 +91,7 @@ export default function useSubmitMessage() {
   const { showToast } = useToastContext();
   const localize = useLocalize();
   const displayEndpointLabel = endpointLabel || localize('com_endpoint_ai');
+  const { data: modelsConfig, isFetchedAfterMount: modelsFetched } = useGetModelsQuery();
 
   const autoSendPrompts = useRecoilValue(store.autoSendPrompts);
   const activeConvos = useRecoilValue(store.allConversationsSelector);
@@ -120,6 +122,30 @@ export default function useSubmitMessage() {
           }
         }
         showToast({ message, status: 'error' });
+        return;
+      }
+
+      const endpoint = conversation?.endpoint ?? '';
+      const model = conversation?.model?.trim();
+      const availableModels =
+        (modelsFetched ? modelsConfig?.[endpoint] : undefined) ?? modelsConfig?.[endpoint] ?? [];
+
+      if (!model) {
+        showToast({
+          message: localize('com_error_missing_model', { 0: displayEndpointLabel }),
+          status: 'error',
+        });
+        return;
+      }
+
+      if (availableModels.length && !availableModels.includes(model)) {
+        showToast({
+          message: localize('com_error_illegal_model_request', {
+            0: model,
+            1: displayEndpointLabel,
+          }),
+          status: 'error',
+        });
         return;
       }
 

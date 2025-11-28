@@ -1087,15 +1087,13 @@ const openAIModels = defaultModels[EModelEndpoint.openAI];
 
 export const initialModelsConfig: TModelsConfig = {
   initial: [],
-  [EModelEndpoint.openAI]: openAIModels,
-  [EModelEndpoint.assistants]: openAIModels.filter(fitlerAssistantModels),
-  [EModelEndpoint.agents]: openAIModels, // TODO: Add agent models (agentsModels)
-  [EModelEndpoint.gptPlugins]: openAIModels,
-  [EModelEndpoint.azureOpenAI]: openAIModels,
-  [EModelEndpoint.chatGPTBrowser]: ['text-davinci-002-render-sha'],
-  [EModelEndpoint.google]: defaultModels[EModelEndpoint.google],
-  [EModelEndpoint.anthropic]: defaultModels[EModelEndpoint.anthropic],
-  [EModelEndpoint.bedrock]: defaultModels[EModelEndpoint.bedrock],
+  ...defaultEndpoints.reduce(
+    (acc, endpoint) => {
+      acc[endpoint] = [];
+      return acc;
+    },
+    {} as TModelsConfig,
+  ),
 };
 
 export const EndpointURLs = {

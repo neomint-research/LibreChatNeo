@@ -277,6 +277,28 @@ function MCPSelectContent() {
   }, []);
 
   const isRefreshing = isFetchingTools || isManualRefreshing;
+  const toggleMenu = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>, menuStore: ReturnType<typeof Ariakit.useMenuStore>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const trigger = event.currentTarget;
+      const isKeyboardClick = event.detail === 0;
+
+      const { open } = menuStore.getState();
+
+      if (open) {
+        menuStore.hide();
+        return;
+      }
+
+      menuStore.setDisclosureElement(trigger);
+      menuStore.setAnchorElement(trigger);
+      menuStore.setAutoFocusOnShow(true);
+      menuStore.setInitialFocus(isKeyboardClick ? 'first' : 'container');
+      menuStore.show();
+    },
+    [],
+  );
 
   const renderSelectedValues = useCallback(
     (values: string[], placeholder?: string) => {
@@ -303,9 +325,13 @@ function MCPSelectContent() {
       <Ariakit.MenuProvider store={serverMenuStore}>
         <Ariakit.MenuButton
           store={serverMenuStore}
+          onClick={(event) => toggleMenu(event, serverMenuStore)}
+          disabled={isServerMenuOpen}
+          aria-disabled={isServerMenuOpen}
           className={cn(
             'badge-icon inline-flex min-w-fit items-center gap-2 rounded-full border border-border-medium bg-transparent px-3 py-2 text-sm font-medium text-text-primary shadow-sm transition-all',
             'hover:bg-surface-hover hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-border-strong',
+            isServerMenuOpen && 'pointer-events-none opacity-80',
           )}
         >
           <MCPIcon className="icon-md text-text-primary" />
@@ -386,9 +412,13 @@ function MCPSelectContent() {
         <Ariakit.MenuProvider store={toolsMenuStore}>
           <Ariakit.MenuButton
             store={toolsMenuStore}
+            onClick={(event) => toggleMenu(event, toolsMenuStore)}
+            disabled={isToolsMenuOpen}
+            aria-disabled={isToolsMenuOpen}
             className={cn(
               'inline-flex items-center gap-2 rounded-xl border border-border-medium bg-surface-secondary/70 px-4 py-2 text-sm font-semibold text-text-primary shadow-sm transition-all',
               'hover:bg-surface-hover hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-border-strong',
+              isToolsMenuOpen && 'pointer-events-none opacity-80',
             )}
           >
             <Wrench className="h-4 w-4 text-text-secondary" />
