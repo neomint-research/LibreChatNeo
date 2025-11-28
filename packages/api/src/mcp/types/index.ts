@@ -39,6 +39,7 @@ export interface LCTool {
   name: string;
   description?: string;
   parameters: JsonSchemaType;
+  metadata?: Record<string, unknown>;
 }
 
 export interface LCFunctionTool {

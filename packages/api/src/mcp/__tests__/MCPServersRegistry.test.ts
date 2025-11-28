@@ -2,6 +2,7 @@ import { join } from 'path';
 import { readFileSync } from 'fs';
 import { load as yamlLoad } from 'js-yaml';
 import { logger } from '@librechat/data-schemas';
+import { Constants } from 'librechat-data-provider';
 import type { OAuthDetectionResult } from '~/mcp/oauth/detectOAuth';
 import type * as t from '~/mcp/types';
 import { ConnectionsRepository } from '~/mcp/ConnectionsRepository';
@@ -566,6 +567,59 @@ describe('MCPServersRegistry - Initialize Function', () => {
 
       expect(registry.toolFunctions).toHaveProperty('test_tool_mcp_server_with_connection');
       expect(Object.keys(registry.toolFunctions)).toHaveLength(1);
+    });
+
+    it('should keep tool ids suffixed while exposing clean display names in metadata', async () => {
+      const testConfig: t.MCPServers = {
+        'mintapp-gateway': {
+          type: 'stdio',
+          args: [],
+          command: 'test-command',
+        },
+      };
+
+      const registry = new MCPServersRegistry(testConfig);
+
+      const mockClient = {
+        listTools: jest.fn().mockResolvedValue({
+          tools: [
+            {
+              name: 'resolve-library-id',
+              description: 'Resolves a library id',
+              inputSchema: { type: 'object', properties: {} },
+            },
+          ],
+        }),
+        getInstructions: jest.fn().mockReturnValue(undefined),
+        getServerCapabilities: jest.fn().mockReturnValue({ tools: {} }),
+      };
+      const mockConnection = {
+        client: mockClient,
+      } as unknown as jest.Mocked<MCPConnection>;
+
+      mockConnectionsRepo.get.mockResolvedValue(mockConnection);
+      mockConnectionsRepo.getLoaded.mockResolvedValue(
+        new Map([['mintapp-gateway', mockConnection]]),
+      );
+
+      mockDetectOAuthRequirement.mockResolvedValue({
+        requiresOAuth: false,
+        method: 'no-metadata-found',
+        metadata: null,
+      });
+
+      await registry.initialize();
+
+      const toolKey = `resolve-library-id${Constants.mcp_delimiter}mintapp-gateway`;
+      const toolDefinition = registry.toolFunctions[toolKey]?.function;
+
+      expect(toolDefinition?.name).toBe(toolKey);
+      expect(toolDefinition?.metadata).toEqual(
+        expect.objectContaining({
+          displayName: 'resolve-library-id',
+          source: 'mintapp-gateway',
+        }),
+      );
     });
 
     it('should handle getLoaded returning empty map gracefully', async () => {

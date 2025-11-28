@@ -227,30 +227,28 @@ const getMCPTools = async (req, res) => {
 
             const toolName = toolKey.split(Constants.mcp_delimiter)[0];
             const metadata = toolData.function.metadata ?? {};
-            let displayName =
-              metadata.displayName ||
-              metadata.title ||
-              metadata.name ||
-              toolData.function.name ||
-              toolName;
+            const nameFromMetadata = metadata.displayName || metadata.title || metadata.name;
+            const displayName = nameFromMetadata || toolName;
             let source = extractSourceFromMetadata(metadata);
-            const version = extractVersion(metadata);
 
             const splitResult = splitDisplayName(displayName);
-            if (splitResult.displayName) {
-              displayName = splitResult.displayName;
-            }
-            if (!source && splitResult.source) {
-              source = splitResult.source;
-            }
+            const normalizedDisplayName = splitResult.displayName || displayName;
+            source = source || splitResult.source || undefined;
+
+            const normalizedMetadata = {
+              ...metadata,
+              name: nameFromMetadata || normalizedDisplayName,
+              displayName: metadata.displayName || normalizedDisplayName,
+            };
+            const version = extractVersion(normalizedMetadata);
 
             const toolEntry = {
-              name: displayName,
+              name: normalizedDisplayName,
               pluginKey: toolKey,
               description: toolData.function.description || '',
-              source: source || undefined,
+              source,
               version: version || undefined,
-              metadata,
+              metadata: normalizedMetadata,
             };
 
             server.tools.push(toolEntry);
