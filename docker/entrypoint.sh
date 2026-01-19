@@ -1,6 +1,14 @@
 #!/bin/sh
 set -eu
 
+# Set LD_PRELOAD for jemalloc based on architecture
+ARCH="$(uname -m)"
+if [ "$ARCH" = "x86_64" ]; then
+  export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
+elif [ "$ARCH" = "aarch64" ]; then
+  export LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libjemalloc.so.2
+fi
+
 APP_DIR="/app"
 DB_PATH="/data/db"
 LOG_DIR="$APP_DIR/api/logs"
