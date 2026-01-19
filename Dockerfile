@@ -17,8 +17,8 @@ RUN apt-get update \
      gosu \
   && rm -rf /var/lib/apt/lists/*
 
-# Set environment variable to use jemalloc
-ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
+# Set environment variable to use jemalloc (architecture-aware)
+# Note: Set dynamically at runtime via entrypoint for multi-arch support
 
 # Add `uv` for extended MCP support
 COPY --from=ghcr.io/astral-sh/uv:0.6.13 /uv /uvx /bin/
@@ -28,16 +28,27 @@ RUN mkdir -p /app && chown node:node /app
 WORKDIR /app
 
 # Install MongoDB Server (embedded DB option)
+# MongoDB only provides apt packages for amd64 on Debian; arm64 requires binary download
 USER root
 RUN set -eux; \
   arch="$(dpkg --print-architecture)"; \
-  curl -fsSL https://pgp.mongodb.com/server-7.0.asc | gpg --dearmor -o /usr/share/keyrings/mongodb-server-7.0.gpg; \
-  echo "deb [ signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg arch=${arch} ] https://repo.mongodb.org/apt/debian bookworm/mongodb-org/7.0 main" > /etc/apt/sources.list.d/mongodb-org-7.0.list; \
-  apt-get update; \
-  apt-get install -y --no-install-recommends mongodb-org; \
-  rm -rf /var/lib/apt/lists/*; \
-  # Remove systemd unit files we don't need in containers
-  rm -f /etc/init.d/mongod /lib/systemd/system/mongod.service || true; \
+  if [ "$arch" = "amd64" ]; then \
+    curl -fsSL https://pgp.mongodb.com/server-7.0.asc | gpg --dearmor -o /usr/share/keyrings/mongodb-server-7.0.gpg; \
+    echo "deb [ signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg arch=${arch} ] https://repo.mongodb.org/apt/debian bookworm/mongodb-org/7.0 main" > /etc/apt/sources.list.d/mongodb-org-7.0.list; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends mongodb-org; \
+    rm -rf /var/lib/apt/lists/*; \
+    rm -f /etc/init.d/mongod /lib/systemd/system/mongod.service || true; \
+  elif [ "$arch" = "arm64" ]; then \
+    # MongoDB doesn't provide arm64 Debian builds; Ubuntu 22.04 build is glibc-compatible
+    MONGO_VERSION="7.0.28"; \
+    curl -fsSL "https://fastdl.mongodb.org/linux/mongodb-linux-aarch64-ubuntu2204-${MONGO_VERSION}.tgz" -o /tmp/mongodb.tgz; \
+    tar -xzf /tmp/mongodb.tgz -C /tmp; \
+    cp /tmp/mongodb-linux-aarch64-ubuntu2204-${MONGO_VERSION}/bin/* /usr/local/bin/; \
+    rm -rf /tmp/mongodb*; \
+  else \
+    echo "Unsupported architecture: $arch"; exit 1; \
+  fi; \
   mkdir -p /data/db /app/client/public/images /app/api/logs /app/uploads; \
   chown -R node:node /data/db /app
 
