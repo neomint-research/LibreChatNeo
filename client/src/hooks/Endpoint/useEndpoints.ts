@@ -74,7 +74,8 @@ export const useEndpoints = ({
       const currentEndpoint = endpoints[i];
       const endpointKey = String(currentEndpoint);
 
-      if (!allowedEndpointValues.has(endpointKey)) {
+      const isCustomEndpoint = !(endpointKey in EModelEndpoint) && !Object.values(EModelEndpoint).includes(endpointKey as EModelEndpoint);
+      if (!allowedEndpointValues.has(endpointKey) && !isCustomEndpoint) {
         continue;
       }
       if (currentEndpoint === EModelEndpoint.agents && !hasAgentAccess) {
