@@ -1,0 +1,69 @@
+LibreChatNeo Maintainability with AI
+
+Purpose
+- Quick map to existing docs and guidance for keeping AI-generated changes healthy.
+
+Where to find docs
+- README.md: setup, compose stack, and repo entry points.
+- CHANGELOG.md: release deltas; mirror behavior changes here when AI alters flows.
+- docs/local-web-search.md: SearxNG/ws-local stack details.
+- docker-compose.yml and docker/*: container wiring and service configuration.
+- package.json scripts: authoritative commands for lint, test, and build; prefer using these instead of ad-hoc commands.
+
+Local setup quickstart (minimal)
+- Prereqs: Docker + Docker Compose, Node 18+ (for scripts), npm or bun, Git.
+- Clone your fork: `git clone <fork-url> && cd LibreChatNeo`.
+- Env: `cp .env.example .env` and fill secrets/keys as needed.
+- Config: edit `librechat.example.yaml` if you need different endpoints or presets; compose already mounts it as `librechat.yaml` in the API container.
+- Start: `docker compose pull && docker compose up -d`.
+- Check: `docker compose ps`, `docker compose logs -f api`, UI at `http://localhost`, API at `http://localhost:3080`.
+
+Working with AI on code changes
+- State the goal, current behavior, and scope limits; include file paths and any error output.
+- Ask for a short plan before code; keep diffs focused and incremental.
+- Tell the AI to align with existing style, keep ASCII output, and only add comments where clarity is needed.
+- Request a preview of changes plus the exact tests or scripts it expects you to run.
+- Remind it not to revert local/manual edits and to call out risky areas or follow-ups.
+
+Maintainability basics
+- Keep changes small and isolated; favor feature flags or config switches for risky work.
+- Update docs alongside code; note config/env shifts in README.md or inline docs.
+- Add or extend targeted tests when behavior changes; run relevant package.json scripts before committing.
+- Be deliberate with dependency bumps; note them in CHANGELOG.md and verify lockfiles stay in sync.
+- Maintain consistent logging and error handling; avoid silencing errors unless documented.
+
+Test checklist by change type
+- Copy/docs only: optionally `npm run lint` to catch stray lint issues.
+- Client UI/logic: `npm run lint`, `npm run test:client`; run `npm run e2e` for flows you touched.
+- API/service logic: `npm run lint`, `npm run test:api`; consider `npm run e2e` for user-facing flows.
+- Web search stack (ws-local/SearxNG): `docker compose logs ws-local searxng`, `npm run lint`; exercise a browse request in the UI or via API before merging.
+- Dependency bumps: `npm run lint`, rerun the relevant test set (client/api/e2e), and `npm run build:client` or `npm run build:api` if you changed build-time deps.
+
+Architecture snapshot
+- Client: React app served by the NGINX container (`client` service) proxying to the API on `:3080`.
+- API: Node service (`api` service, code in api/ and packages/) orchestrating auth, chat, tools, web search, and file handling.
+- Data: MongoDB for app state, Meilisearch for search, Postgres/pgvector (`vectordb`) plus `rag_api` for RAG embeddings/queries.
+- Web search: SearxNG (`searxng`) + ws-local (`ws-local`) for search/scrape/rerank; configured via env vars and `docker/searxng/settings.yml`.
+- Models: Ollama container optional for local models; external providers configured in `librechat.example.yaml`.
+
+Upgrade checklist
+- Note what changed (deps, base images, env flags) in CHANGELOG.md and docs.
+- Keep image pins/env overrides consistent (`API_IMAGE`, `WS_LOCAL_IMAGE`, `SEARXNG_IMAGE`, Playwright base) and rebuild/pull as needed.
+- Sync lockfiles after dependency shifts; avoid mixing npm/bun installs in the same run.
+- Rerun `npm run lint` plus targeted tests (`npm run test:client`, `npm run test:api`, `npm run e2e` if user flows moved).
+- Verify configs still load: reapply `.env`, confirm `librechat.example.yaml` (or your copy) matches new options, and sanity-check container logs for errors on boot.
+
+Merging upstream into this fork
+1) Ensure remotes: origin = your fork, upstream = source repo. Add with `git remote add upstream <source-url>` if missing.
+2) Fetch: `git fetch upstream`.
+3) Sync main: `git checkout main` then `git merge upstream/main` (or `git rebase upstream/main` if you prefer rebase).
+4) Resolve conflicts, then rerun the repo's lint/test/build scripts and any compose-based smoke tests you rely on.
+5) Push: `git push origin main`.
+6) Refresh feature branches: `git checkout <branch>` then merge or rebase onto main, and retest.
+
+What else to keep here
+- Reusable AI prompt snippets for common tasks (e.g., patch file X to do Y, keep changes under Z lines, include tests touched).
+- Checklists: pre-PR (tests listed, docs updated), post-merge (changelog and deploy notes touched).
+- Security guidance: where env files live, how to avoid committing secrets, and who approves secret rotation.
+- Contact/review paths: preferred channels for questions and who reviews which areas.
+- Pointers to architecture diagrams or TODOs for missing docs so future updates stay discoverable.
